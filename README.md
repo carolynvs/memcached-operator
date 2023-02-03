@@ -1,80 +1,44 @@
-# memcached-operator
-// TODO(user): Add simple overview of use/purpose
+# memcached-operator bundle
 
-## Description
-// TODO(user): An in-depth paragraph about your project and overview of use
+This repository demonstrates how to deploy a sample kubernetes operator created by the operator sdk tutorial with Porter.
 
-## Getting Started
-You’ll need a Kubernetes cluster to run against. You can use [KIND](https://sigs.k8s.io/kind) to get a local cluster for testing, or run against a remote cluster.
-**Note:** Your controller will automatically use the current context in your kubeconfig file (i.e. whatever cluster `kubectl cluster-info` shows).
+https://sdk.operatorframework.io/docs/building-operators/golang/quickstart/
 
-### Running on the cluster
-1. Install Instances of Custom Resources:
+## Prerequisites
+* [Operator-SDK](https://sdk.operatorframework.io/docs/installation/)
+* [Porter](https://getporter.org/install/)
 
-```sh
-kubectl apply -f config/samples/
+## Try it out
+
+Set up Porter by editing creds.yaml and updating the path to your kubeconfig.
+Then run the following commands:
+
+```
+porter credentials apply -f creds.yaml
+porter install -r ghcr.io/carolynvs/memcached-operator:v0.1.0 -c memcached-operator
 ```
 
-2. Build and push your image to the location specified by `IMG`:
-	
-```sh
-make docker-build docker-push IMG=<some-registry>/memcached-operator:tag
-```
-	
-3. Deploy the controller to the cluster with the image specified by `IMG`:
+## Build it yourself
 
-```sh
-make deploy IMG=<some-registry>/memcached-operator:tag
-```
+1. Build the operator image and push it:
+    ```
+    export REGISTRY=YOUR_REGISTRY
+    make build docker-build docker-push
+    ```
 
-### Uninstall CRDs
-To delete the CRDs from the cluster:
+2. Set up Porter by editing creds.yaml and updating the path to your kubeconfig. Then run the following command:
+    ```
+    make porter-setup
+    ```
 
-```sh
-make uninstall
-```
+3. Edit porter/porter.yaml and update the reference of the operator image in the `images` section so that the bundle uses your newly built image.
 
-### Undeploy controller
-UnDeploy the controller to the cluster:
-
-```sh
-make undeploy
-```
-
-## Contributing
-// TODO(user): Add detailed information on how you would like others to contribute to this project
-
-### How it works
-This project aims to follow the Kubernetes [Operator pattern](https://kubernetes.io/docs/concepts/extend-kubernetes/operator/)
-
-It uses [Controllers](https://kubernetes.io/docs/concepts/architecture/controller/) 
-which provides a reconcile function responsible for synchronizing resources untile the desired state is reached on the cluster 
-
-### Test It Out
-1. Install the CRDs into the cluster:
-
-```sh
-make install
-```
-
-2. Run your controller (this will run in the foreground, so switch to a new terminal if you want to leave it running):
-
-```sh
-make run
-```
-
-**NOTE:** You can also run this in one step by running: `make install run`
-
-### Modifying the API definitions
-If you are editing the API definitions, generate the manifests such as CRs or CRDs using:
-
-```sh
-make manifests
-```
-
-**NOTE:** Run `make --help` for more information on all potential `make` targets
-
-More information can be found via the [Kubebuilder Documentation](https://book.kubebuilder.io/introduction.html)
+4. Build and install the operator using Porter:
+    ```
+    cd porter
+    porter build
+    porter install
+    ```
 
 ## License
 

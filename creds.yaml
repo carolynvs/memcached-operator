@@ -1,0 +1,7 @@
+schemaType: CredentialSet
+schemaVersion: 1.0.1
+name: memcached-operator
+credentials:
+  - name: kubeconfig
+    source:
+      path: $HOME/.kube/config.yaml

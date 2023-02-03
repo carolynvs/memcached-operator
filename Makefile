@@ -24,12 +24,15 @@ BUNDLE_DEFAULT_CHANNEL := --default-channel=$(DEFAULT_CHANNEL)
 endif
 BUNDLE_METADATA_OPTS ?= $(BUNDLE_CHANNELS) $(BUNDLE_DEFAULT_CHANNEL)
 
+# REGISTRY defines where images and bundles are pushed
+REGISTRY ?= ghcr.io/carolynvs
+
 # IMAGE_TAG_BASE defines the docker.io namespace and part of the image name for remote images.
 # This variable is used to construct full image tags for bundle and catalog images.
 #
 # For example, running 'make bundle-build bundle-push catalog-build catalog-push' will build and push both
 # example.com/memcached-operator-bundle:$VERSION and example.com/memcached-operator-catalog:$VERSION.
-IMAGE_TAG_BASE ?= carolynvs/memcached-operator
+IMAGE_TAG_BASE ?= $(REGISTRY)/memcached-operator-controller
 
 # BUNDLE_IMG defines the image:tag used for the bundle.
 # You can use it as an arg. (E.g make bundle-build BUNDLE_IMG=<some-registry>/<project-name-bundle>:<tag>)
@@ -47,7 +50,7 @@ ifeq ($(USE_IMAGE_DIGESTS), true)
 endif
 
 # Image URL to use all building/pushing image targets
-IMG ?= controller:latest
+IMG ?= $(IMAGE_TAG_BASE):$(VERSION)
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.25.0
 
@@ -88,6 +91,8 @@ help: ## Display this help.
 .PHONY: manifests
 manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
 	$(CONTROLLER_GEN) rbac:roleName=manager-role crd webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+	cd config/manager && $(KUSTOMIZE) edit set image controller=controller:latest
+	$(KUSTOMIZE) build config/default -o porter/manifests/operator.yaml
 
 .PHONY: generate
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
@@ -108,7 +113,7 @@ test: manifests generate fmt vet envtest ## Run tests.
 ##@ Build
 
 .PHONY: build
-build: generate fmt vet ## Build manager binary.
+build: generate fmt vet manifests ## Build manager binary.
 	go build -o bin/manager main.go
 
 .PHONY: run
@@ -120,7 +125,7 @@ run: manifests generate fmt vet ## Run a controller from your host.
 # More info: https://docs.docker.com/develop/develop-images/build_enhancements/
 .PHONY: docker-build
 docker-build: test ## Build docker image with the manager.
-	docker build -t ${IMG} .
+	docker build --platform=linux/amd64 -t ${IMG} .
 
 .PHONY: docker-push
 docker-push: ## Push docker image with the manager.
@@ -132,7 +137,7 @@ docker-push: ## Push docker image with the manager.
 # - have enable BuildKit, More info: https://docs.docker.com/develop/develop-images/build_enhancements/
 # - be able to push the image for your registry (i.e. if you do not inform a valid value via IMG=<myregistry/image:<tag>> than the export will fail)
 # To properly provided solutions that supports more than one platform you should use this option.
-PLATFORMS ?= linux/arm64,linux/amd64,linux/s390x,linux/ppc64le
+PLATFORMS ?= linux/amd64
 .PHONY: docker-buildx
 docker-buildx: test ## Build and push docker image for the manager for cross-platform support
 	# copy existing Dockerfile and insert --platform=${BUILDPLATFORM} into Dockerfile.cross, and preserve the original Dockerfile
@@ -142,6 +147,27 @@ docker-buildx: test ## Build and push docker image for the manager for cross-pla
 	- docker buildx build --push --platform=$(PLATFORMS) --tag ${IMG} -f Dockerfile.cross
 	- docker buildx rm project-v3-builder
 	rm Dockerfile.cross
+
+##@ Porter
+.PHONY: porter-setup
+porter-setup:
+	porter mixin install kubernetes
+	porter mixin install kustomize \
+		--version 0.2-beta-4 \
+		--url https://github.com/donmstewart/porter-kustomize/releases/download
+	porter credentials apply creds.yaml
+
+.PHONY: porter-build
+porter-build:
+	cd porter && porter build
+
+.PHONY: porter-publish
+porter-publish:
+	cd porter && porter publish --registry $(REGISTRY)
+
+.PHONY: porter-install
+porter-install:
+	cd porter && porter install -c memcached-operator --force
 
 ##@ Deployment
 
