@@ -1,0 +1,15 @@
+# Defines that mycustomer should have an installation of memcached-operator
+apiVersion: porter.sh/v1
+kind: Installation
+metadata:
+  name: memcached-operator
+  namespace: mycustomer
+spec:
+  schemaVersion: 1.0.2
+  name: memcached-operator
+  namespace: mycustomer
+  bundle:
+    repository: ghcr.io/carolynvs/memcached-operator:v0.1.0
+    version: 0.1.0
+  credentialSets:
+    - mycustomer-cluster
